@@ -1,6 +1,6 @@
 package com.example.demo.service;
 
-import com.example.demo.ActorRepository;
+import com.example.demo.repository.ActorRepository;
 import com.example.demo.entity.Actor;
 import org.springframework.stereotype.Service;
 
@@ -34,7 +34,7 @@ public class ActorService {
         return actorRepository.save(actor);
     }
 
-    public void delete(Actor actor) {
-        actorRepository.delete(actor);
+    public void delete(Integer id) {
+        actorRepository.deleteById(id);
     }
 }

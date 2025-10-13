@@ -1,11 +1,9 @@
 package com.example.demo.controller;
 
-import com.example.demo.ActorRepository;
 import com.example.demo.entity.Actor;
 import com.example.demo.service.ActorService;
-import org.springframework.data.repository.query.Param;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.List;
 
@@ -37,5 +35,11 @@ public class ActorController {
     @PutMapping("/{id}")
     public Actor update(@RequestBody Actor actor,  @PathVariable Integer id){
         return actorService.update(id, actor);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteById(@PathVariable Integer id){
+        actorService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }
