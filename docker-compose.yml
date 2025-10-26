@@ -1,4 +1,5 @@
 services:
+  # Dịch vụ MySQL từ tệp gốc của bạn
   mysql_db:
     image: mysql:8.0
     container_name: my-mysql-container
@@ -16,6 +17,59 @@ services:
       timeout: 20s
       retries: 10
       interval: 10s
+    networks:
+      - elk
+
+  # Dịch vụ Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.5
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - elk
+
+  # Dịch vụ Logstash
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.1.5
+    container_name: logstash
+    ports:
+      - "5000:5000"
+      - "9600:9600"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk
+
+  # Dịch vụ Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.1.5
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=gJ_K9sL7R-aP9nF8tX_vCqY3zW1xU7oI
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk
 
 volumes:
   mysql_data:
+  elasticsearch-data:
+    driver: local
+
+networks:
+  elk:
+    driver: bridge
