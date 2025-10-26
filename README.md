@@ -64,3 +64,32 @@ Sau khi tạo entity thì ta cần tạo repository để có thể giao tiếp 
 - Tiếp theo ta cần inject service vào để gọi các hàm của service
 - Với mỗi endpoint ta cũng cần một annotation (@GetMapping, @PostMapping, ...)
 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Validate API và API Docs
+## 1. Validate API
+Để có nhiều trường để validate thì em đã tạo route film
+### 1.1. Thêm dependency mapStruct
+Để dơn giản trong quá trình validate thì ta sẽ dùng mapStruct để auto map các dto với entity
+### 1.2. Tạo dto cho các endpoint
+- Bước validate thường được thực hiện ở các dto nhận request, em validate 2 dto là Create và Update request
+  - Với Create thì em dùng các annotation của jakarta.validation.constraints gồm (@NotBlank, @Size, @NotNull, @Positive, ...)
+  - Còn Update thì tương tự Create nhưng loại bỏ các xác thực về NotBlank vầ Not Null
+### 1.3. Cấu hình mapper
+Mapper thì ta cần phải dùng annotation @Mapper(componentModel = "spring") ở trước khai báo class
+- Để tạo các hàm mapper thì ta chỉ cần khai báo kiểu trả về và tham số truyền vào: ví dụ cần map từ FilmCreateRequest qua entity thì ta đặt kiểu trả về là entity còn tham số truyền vào là dto
+- Nếu đối tượng đích có các thuộc tính chúng ta không muốn truyền vào thì ta dùng @Mapping(target = "tên thuộc tính", ignore = true)
+- Nếu đối tượng đích và đối tượng nguồn có tên thuộc tính khác nhau nhưng vẫn muốn map thì ta dùng @Mapping(target = "thuộc tính đích", source, "thuộc tính nguồn")
+
+## 2. API Docs
+### 2.1. Thêm dependency spring doc 
+Vào pom.xml và thêm dependency
+```<groupId>org.springdoc</groupId>```
+```<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>```
+
+### 2.2. Cấu hình cho controller
+Thêm annotation 
+```@Tag(name = "Actor", description = "This is Actor tag")```
+để chia tag và tạo mô tả cho route
+
+### 2.3. Truy cập Swagger
+ta vào endpoint /swagger-ui.html để truy cập swagger
