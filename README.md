@@ -1,4 +1,4 @@
-# Build một RESTful API
+# <p align="center"> GA01: Build một RESTful API </p>
 gồm các endpoint:
 
 👉 View a list of all `actor`
@@ -65,7 +65,8 @@ Sau khi tạo entity thì ta cần tạo repository để có thể giao tiếp 
 - Với mỗi endpoint ta cũng cần một annotation (@GetMapping, @PostMapping, ...)
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Validate API và API Docs
+# <p align="center"> GA02: Validate API và API Docs </p>
+
 ## 1. Validate API
 Để có nhiều trường để validate thì em đã tạo route film
 ### 1.1. Thêm dependency mapStruct
@@ -93,3 +94,146 @@ Thêm annotation
 
 ### 2.3. Truy cập Swagger
 ta vào endpoint /swagger-ui.html để truy cập swagger
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# <p align="center"> GA03: logging and monitoring </p>
+## 1. Cấu hình Spring application
+### 1.1. Thêm dependency lockback
+```
+<dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>8.0</version>
+</dependency>
+```
+### 1.2. Thêm file cấu hình logback
+- Tạo file logback-spring.yml vào folder resources
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Logstash Appender - gửi logs tới Logstash -->
+    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>localhost:5000</destination>
+
+        <!-- Encoder JSON format -->
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeContext>true</includeContext>
+            <includeMdc>true</includeMdc>
+            <customFields>{"app":"spring-boot-demo"}</customFields>
+        </encoder>
+    </appender>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOGSTASH"/>
+    </root>
+
+    <!-- Application logger -->
+    <logger name="com.example" level="DEBUG"/>
+</configuration>
+```
+### 1.3. Tạo một component ghi log khi nhận request
+Khi một request được gửi đến spring boot thì nó sẽ 
+- Tạo một component LoggerFilter extends OncePerRequestFilter (class này sẽ dùng để cấu hình một filter, khi một request được gửi đến, nó sẽ qua nhiều filter khác nhau với nhiều mục đích khác nhau)
+- Ta sẽ cho log này log các tham số của request rồi mới đấy cho nó qua filter khác, và sau khi có response thì tiếp tục log response
+- Dùng Wrapper khi log do HttpServletRequest là một inputStream và ta chỉ đọc được một lần, nếu không dùng wrapper thì các filter hoặc controller sau không đọc được nội dung)
+
+### 2. Tạo file docker compose
+- Tạo service cho ElasticSearch, Kibana và logstash cả 3 phải dùng chung version (9.1.5 trong dự án demo)
+- Tắt các tùy chọn xác thực để đơn giản
+## 3. Tạo file cấu hình cho logstash
+- gồm 2 folder là config(logstash.yml) và pipeline(logstash.conf)
+  - logstash.yml: chứa cấu hình chung của logstash service
+  - logstash.conf: chứa cấu hình pipelines xử lý logic gồm
+    - Input: Nhận logs từ đầu vào nào (TCP port 5000)
+    - Filter: Xử lý logs như thế nào
+    - Output: Gửi logs đi đâu (Elasticsearch + console)
+
+## 4. Khởi chạy và kiểm tra
+Chạy 
+```
+docker compose up -d
+```
+
+Sau khi các container đã up thì chờ 5-10p để tất cả sẵn sàng và truy câp thử 
+- http://localhost:9200 để kiểm tra elasticSearch (nếu thành công sẽ hiện ra một đối tượng json)
+- http://localhost:5601 để kiểm tra kibana (nếu thành công sẽ hiện ra giao diện web kibana)
+
+Sau khi kiểm tra thì chạy ứng dụng và test một endpoint, sau đó vào kibana xem đã hiện log chưa
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# <p align="center"> GA04 - API Security #1 </p>
+
+## 1. Xác thực client nội bộ - Dùng api key
+Để xác thực nội bộ thì khi gửi request sẽ kèm api key trong header, sau đây là cách thực hiện
+
+### 1.1. Set api key vào trong application.properties
+
+### 1.2. Tạo một OncePerRequestFilter đặt tên là ApiKetFilter
+Filter này sẽ đọc header X-api-key và so sánh với api key được lưu trong server
+- Nếu api key không giống thì sẽ báo lỗi authorize, nếu khớp thì sẽ cho request đi tiếp
+
+## 2. Xác thực client nội bộ (dưới 10) và cần định danh
+Để làm được điều này thì ta sẽ cần dùng spring security và dùng basic authenticate để cấu hình user
+
+### 2.1. Thêm dependency spring security
+```
+<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+```
+
+### 2.2. Tạo securityConfig
+- Tạo class securityConfig trong package config
+- Tiếp theo ta cần một list user
+  - Dùng UserDetailsService để tạo ra các User và lưu nó trong bộ nhớ
+  - Ngoài ra ta cũng cần dùng BcryptEncoder để encode passwword
+```
+    @Bean
+    public UserDetailsService userDetailsService() {
+        // Tạo user thứ nhất
+        UserDetails user = User.builder()
+                .username("user")
+                .password(passwordEncoder().encode("user123")) // Mật khẩu phải được mã hóa
+                .roles("USER")
+                .build();
+
+        // Tạo user thứ hai với vai trò admin
+        UserDetails admin = User.builder()
+                .username("admin")
+                .password(passwordEncoder().encode("admin123"))
+                .roles("USER", "ADMIN") // Admin có cả 2 vai trò
+                .build();
+
+        // Trả về một manager quản lý 2 user này
+        return new InMemoryUserDetailsManager(user, admin);
+    }
+```
+
+- Sau đó ta sẽ cấu hình FilterChain (chuỗi filter của spring security)
+```
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().authenticated())
+                .httpBasic(Customizer.withDefaults()
+                );
+        return http.build();
+    }
+```
+
+- Tắt csrf do không sử dụng cookie để xác thực và để có thể test bằng postman
+- Cấu hình authorize cho tất cả request
+- Dùng Basic Authenticate
